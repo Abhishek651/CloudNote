@@ -21,9 +21,12 @@ app.use(cors({
     if (!origin) return callback(null, true);
     if (origin.match(/^http:\/\/localhost:\d+$/)) return callback(null, true);
     if (origin === process.env.FRONTEND_URL) return callback(null, true);
-    callback(new Error('Not allowed by CORS'));
+    if (origin && origin.includes('vercel.app')) return callback(null, true);
+    callback(null, true);
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json({ limit: '50mb' }));
