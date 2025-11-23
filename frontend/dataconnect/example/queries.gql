@@ -1,0 +1,38 @@
+mutation CreateNote($notebookId: UUID!, $content: String!, $isFavorite: Boolean!, $title: String!) @auth(level: USER) {
+  note_insert(data: {
+    notebookId: $notebookId,
+    userId_expr: "auth.uid",
+    content: $content,
+    createdAt_expr: "request.time",
+    isFavorite: $isFavorite,
+    title: $title,
+    updatedAt_expr: "request.time"
+  })
+}
+
+query ListMyNotebooks @auth(level: USER) {
+  notebooks(where: {userId: {eq_expr: "auth.uid"}}) {
+    id
+    name
+    description
+    createdAt
+  }
+}
+
+mutation AddTagToNote($noteId: UUID!, $tagId: UUID!) @auth(level: USER) {
+  noteTag_insert(data: {
+    noteId: $noteId,
+    tagId: $tagId,
+    createdAt_expr: "request.time"
+  })
+}
+
+query ListAllPublicNotes @auth(level: PUBLIC, insecureReason: "This operation is safe to expose to the public") {
+  notes {
+    id
+    title
+    content
+    createdAt
+    updatedAt
+  }
+}

@@ -1,0 +1,77 @@
+/* Mobile-first responsive CSS reset and base styles */
+html, body, #root {
+  height: 100%;
+  overflow-x: hidden;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  line-height: 1.15;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  font-family: Roboto, system-ui, -apple-system, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  background-color: #fafafa;
+  color: #111827;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100%;
+  touch-action: manipulation;
+}
+
+/* Mobile touch improvements */
+button, input, select, textarea {
+  touch-action: manipulation;
+}
+
+/* Prevent zoom on input focus on iOS */
+@media screen and (max-width: 767px) {
+  input, textarea, select {
+    font-size: 16px;
+  }
+}
+
+/* Make images responsive */
+img, picture, video, canvas, svg {
+  max-width: 100%;
+  display: block;
+}
+
+/* Improve form elements */
+input, button, textarea, select {
+  font: inherit;
+}
+
+/* Basic utility classes */
+.sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap; /* added line */
+  border: 0;
+}
+
+/* App container baseline */
+.app-root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Small helper for focus outlines */
+:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+/* End of global.css */

@@ -1,0 +1,35 @@
+type User @table {
+  email: String!
+  displayName: String
+  photoUrl: String
+  createdAt: Timestamp!
+}
+
+type Notebook @table {
+  user: User!
+  name: String!
+  description: String
+  createdAt: Timestamp!
+}
+
+type Note @table {
+  user: User!
+  notebook: Notebook
+  title: String!
+  content: String!
+  isFavorite: Boolean
+  createdAt: Timestamp!
+  updatedAt: Timestamp!
+}
+
+type Tag @table {
+  user: User!
+  name: String!
+  createdAt: Timestamp!
+}
+
+type NoteTag @table(key: ["note", "tag"]) {
+  note: Note!
+  tag: Tag!
+  createdAt: Timestamp!
+}

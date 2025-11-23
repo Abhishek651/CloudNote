@@ -1,0 +1,78 @@
+mutation CreateDemoData @transaction @auth(level: USER) {
+  user_insertMany(data: [
+    {
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      email: "demouser1@example.com",
+      createdAt: "2024-04-28T12:00:00Z",
+      displayName: "Demo User 1"
+    },
+    {
+      id: "550e8400-e29b-41d4-a716-446655440001",
+      email: "demouser2@example.com",
+      createdAt: "2024-04-28T13:00:00Z",
+      displayName: "Demo User 2"
+    }
+  ])
+  notebook_insertMany(data: [
+    {
+      id: "650e8400-e29b-41d4-a716-446655440000",
+      userId: "550e8400-e29b-41d4-a716-446655440000",
+      name: "Demo Notebook 1",
+      createdAt: "2024-04-28T12:15:00Z"
+    },
+    {
+      id: "650e8400-e29b-41d4-a716-446655440001",
+      userId: "550e8400-e29b-41d4-a716-446655440001",
+      name: "Demo Notebook 2",
+      createdAt: "2024-04-28T13:15:00Z"
+    }
+  ])
+  note_insertMany(data: [
+    {
+      id: "750e8400-e29b-41d4-a716-446655440000",
+      notebookId: "650e8400-e29b-41d4-a716-446655440000",
+      userId: "550e8400-e29b-41d4-a716-446655440000",
+      title: "Demo Note 1",
+      content: "This is the content of demo note 1",
+      createdAt: "2024-04-28T12:30:00Z",
+      updatedAt: "2024-04-28T12:30:00Z",
+      isFavorite: false
+    },
+    {
+      id: "750e8400-e29b-41d4-a716-446655440001",
+      notebookId: "650e8400-e29b-41d4-a716-446655440001",
+      userId: "550e8400-e29b-41d4-a716-446655440001",
+      title: "Demo Note 2",
+      content: "This is the content of demo note 2",
+      createdAt: "2024-04-28T13:30:00Z",
+      updatedAt: "2024-04-28T13:30:00Z",
+      isFavorite: true
+    }
+  ])
+  tag_insertMany(data: [
+    {
+      id: "850e8400-e29b-41d4-a716-446655440000",
+      userId: "550e8400-e29b-41d4-a716-446655440000",
+      name: "Demo Tag 1",
+      createdAt: "2024-04-28T12:45:00Z"
+    },
+    {
+      id: "850e8400-e29b-41d4-a716-446655440001",
+      userId: "550e8400-e29b-41d4-a716-446655440001",
+      name: "Demo Tag 2",
+      createdAt: "2024-04-28T13:45:00Z"
+    }
+  ])
+  noteTag_insertMany(data: [
+    {
+      noteId: "750e8400-e29b-41d4-a716-446655440000",
+      tagId: "850e8400-e29b-41d4-a716-446655440000",
+      createdAt: "2024-04-28T12:50:00Z"
+    },
+    {
+      noteId: "750e8400-e29b-41d4-a716-446655440001",
+      tagId: "850e8400-e29b-41d4-a716-446655440001",
+      createdAt: "2024-04-28T13:50:00Z"
+    }
+  ])
+}

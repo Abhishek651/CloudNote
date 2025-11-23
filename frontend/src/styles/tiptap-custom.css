@@ -1,0 +1,186 @@
+/* TipTap Editor Custom Styles */
+
+/* Better mobile touch targets */
+@media (max-width: 768px) {
+  .tiptap-editor {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+}
+
+/* Ensure proper text selection */
+.tiptap-editor ::selection {
+  background-color: rgba(25, 118, 210, 0.3);
+}
+
+/* Smooth transitions */
+.tiptap-editor * {
+  transition: background-color 0.2s ease;
+}
+
+/* Better focus states for accessibility */
+.tiptap-editor:focus-visible {
+  outline: 2px solid #1976d2;
+  outline-offset: 2px;
+}
+
+/* Placeholder styling */
+.tiptap-editor p.is-editor-empty:first-child::before {
+  opacity: 0.6;
+}
+
+/* Code block syntax highlighting */
+.tiptap-editor pre {
+  position: relative;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.tiptap-editor pre code {
+  display: block;
+  white-space: pre;
+  word-wrap: normal;
+  overflow-wrap: normal;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Simple syntax highlighting */
+.tiptap-editor .hljs-comment,
+.tiptap-editor .hljs-quote {
+  color: #888;
+  font-style: italic;
+}
+
+.tiptap-editor .hljs-keyword,
+.tiptap-editor .hljs-selector-tag,
+.tiptap-editor .hljs-literal,
+.tiptap-editor .hljs-type {
+  color: #0066cc;
+  font-weight: 600;
+}
+
+.tiptap-editor .hljs-string,
+.tiptap-editor .hljs-doctag {
+  color: #008000;
+}
+
+.tiptap-editor .hljs-title,
+.tiptap-editor .hljs-section,
+.tiptap-editor .hljs-selector-id {
+  color: #795da3;
+}
+
+.tiptap-editor .hljs-number,
+.tiptap-editor .hljs-regexp,
+.tiptap-editor .hljs-link {
+  color: #0086b3;
+}
+
+.tiptap-editor .hljs-function .hljs-title {
+  color: #795da3;
+}
+
+/* Better table support (if added later) */
+.tiptap-editor table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+}
+
+.tiptap-editor table td,
+.tiptap-editor table th {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.tiptap-editor table th {
+  background-color: rgba(0, 0, 0, 0.05);
+  font-weight: 600;
+}
+
+/* Horizontal rule styling */
+.tiptap-editor hr {
+  border: none;
+  border-top: 2px solid rgba(0, 0, 0, 0.1);
+  margin: 24px 0;
+}
+
+/* Better link hover states */
+.tiptap-editor a:hover {
+  opacity: 0.8;
+  text-decoration: none;
+}
+
+/* Improve readability on mobile */
+@media (max-width: 600px) {
+  .tiptap-editor {
+    font-size: 16px !important; /* Prevent zoom on iOS */
+  }
+  
+  .tiptap-editor h1 {
+    font-size: 1.75rem !important;
+  }
+  
+  .tiptap-editor h2 {
+    font-size: 1.5rem !important;
+  }
+  
+  .tiptap-editor h3 {
+    font-size: 1.25rem !important;
+  }
+}
+
+/* Print styles */
+@media print {
+  .tiptap-editor {
+    font-size: 12pt;
+    line-height: 1.5;
+  }
+  
+  .tiptap-editor a {
+    text-decoration: underline;
+    color: #000;
+  }
+  
+  .tiptap-editor a::after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+    color: #666;
+  }
+  
+  .copy-code-btn {
+    display: none !important;
+  }
+  
+  .tiptap-editor pre {
+    overflow-x: auto;
+  }
+}
+
+/* Copy code button styles */
+.copy-code-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+  background-color: #fff;
+  color: #666;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: system-ui, -apple-system, sans-serif;
+  z-index: 10;
+}
+
+.copy-code-btn:hover {
+  background-color: #f9f9f9;
+  border-color: #999;
+  color: #333;
+}
+
+.copy-code-btn:active {
+  background-color: #eee;
+}
