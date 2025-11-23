@@ -9,8 +9,10 @@ import {
   CircularProgress,
   Avatar,
   Chip,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
-import { Public, AccessTime } from '@mui/icons-material';
+import { Public, AccessTime, Download, PictureAsPdf } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { globalAPI, cacheAPI } from '../services/api';
 
@@ -95,25 +97,43 @@ export default function GlobalPage() {
                 onClick={() => navigate(`/global/notes/${note.id}`)}
               >
                 <CardContent sx={{ flexGrow: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                    <Avatar 
-                      key={note.authorPhotoURL || note.authorId}
-                      src={note.authorPhotoURL}
-                      sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}
-                    >
-                      {note.authorName?.charAt(0).toUpperCase()}
-                    </Avatar>
-                    <Box>
-                      <Typography variant="subtitle2" fontWeight="600" color="text.primary">
-                        {note.authorName}
-                      </Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <AccessTime sx={{ fontSize: 12 }} color="action" />
-                        <Typography variant="caption" color="text.secondary">
-                          {new Date(note.createdAt).toLocaleDateString()}
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Avatar 
+                        key={note.authorPhotoURL || note.authorId}
+                        src={note.authorPhotoURL}
+                        sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}
+                      >
+                        {note.authorName?.charAt(0).toUpperCase()}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="subtitle2" fontWeight="600" color="text.primary">
+                          {note.authorName}
                         </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <AccessTime sx={{ fontSize: 12 }} color="action" />
+                          <Typography variant="caption" color="text.secondary">
+                            {new Date(note.createdAt).toLocaleDateString()}
+                          </Typography>
+                        </Box>
                       </Box>
                     </Box>
+                    {note.type === 'pdf' && note.fileUrl && (
+                      <Tooltip title="Download PDF">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const link = document.createElement('a');
+                            link.href = note.fileUrl;
+                            link.download = note.fileName || 'download.pdf';
+                            link.click();
+                          }}
+                        >
+                          <Download />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                   </Box>
 
                   <Typography variant="h6" gutterBottom sx={{ wordBreak: 'break-word' }}>
