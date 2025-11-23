@@ -9,6 +9,14 @@ export default defineConfig({
   },
   build: {
     target: 'esnext',
-    minify: 'esbuild'
-  }
+    minify: 'esbuild',
+    outDir: 'dist',
+    assetsDir: 'assets',
+    rollupOptions: {
+      output: {
+        manualChunks: undefined
+      }
+    }
+  },
+  base: '/'
 })
