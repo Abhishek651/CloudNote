@@ -51,5 +51,33 @@ export const adminAPI = {
     });
     if (!response.ok) throw new Error('Failed to delete user');
     return response.json();
+  },
+
+  getUserNotes: async (uid) => {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_URL}/api/admin/users/${uid}/notes`, { headers });
+    if (!response.ok) throw new Error('Failed to fetch user notes');
+    return response.json();
+  },
+
+  deleteUserNote: async (uid, noteId) => {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_URL}/api/admin/users/${uid}/notes/${noteId}`, {
+      method: 'DELETE',
+      headers
+    });
+    if (!response.ok) throw new Error('Failed to delete note');
+    return response.json();
+  },
+
+  resetPassword: async (uid, newPassword) => {
+    const headers = await getAuthHeaders();
+    const response = await fetch(`${API_URL}/api/admin/users/${uid}/reset-password`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ newPassword })
+    });
+    if (!response.ok) throw new Error('Failed to reset password');
+    return response.json();
   }
 };

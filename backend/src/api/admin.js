@@ -142,4 +142,54 @@ router.get('/users/:uid', verifyAdmin, async (req, res) => {
   }
 });
 
+// Get user's notes
+router.get('/users/:uid/notes', verifyAdmin, async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const notesSnapshot = await db.collection('notes').where('ownerId', '==', uid).get();
+    
+    const notes = notesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
+      updatedAt: doc.data().updatedAt?.toDate?.() || doc.data().updatedAt
+    }));
+
+    res.json({ notes });
+  } catch (error) {
+    logger.error('AdminAPI', 'Error getting user notes', { error: error.message });
+    res.status(500).json({ error: 'Failed to get user notes', details: error.message });
+  }
+});
+
+// Delete user's note
+router.delete('/users/:uid/notes/:noteId', verifyAdmin, async (req, res) => {
+  try {
+    const { noteId } = req.params;
+    await db.collection('notes').doc(noteId).delete();
+    
+    logger.info('AdminAPI', 'Deleted user note', { noteId });
+    res.json({ message: 'Note deleted successfully' });
+  } catch (error) {
+    logger.error('AdminAPI', 'Error deleting note', { error: error.message });
+    res.status(500).json({ error: 'Failed to delete note', details: error.message });
+  }
+});
+
+// Reset user password
+router.post('/users/:uid/reset-password', verifyAdmin, async (req, res) => {
+  try {
+    const { uid } = req.params;
+    const { newPassword } = req.body;
+    
+    await admin.auth().updateUser(uid, { password: newPassword });
+    
+    logger.info('AdminAPI', 'Reset user password', { uid });
+    res.json({ message: 'Password reset successfully' });
+  } catch (error) {
+    logger.error('AdminAPI', 'Error resetting password', { error: error.message });
+    res.status(500).json({ error: 'Failed to reset password', details: error.message });
+  }
+});
+
 export default router;

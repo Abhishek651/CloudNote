@@ -27,11 +27,13 @@ import {
   Delete as DeleteIcon, 
   Archive as ArchiveIcon, 
   Folder as FolderIcon,
-  Home as HomeIcon 
+  Home as HomeIcon,
+  Public as PublicIcon,
+  VisibilityOff as VisibilityOffIcon
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import logger from '../utils/logger';
-import { notesAPI, foldersAPI } from '../services/api';
+import { notesAPI, foldersAPI, globalAPI } from '../services/api';
 import CreateFolderModal from '../components/CreateFolderModal';
 import Toast from '../components/Toast';
 import { useToast } from '../hooks/useToast';
@@ -51,6 +53,7 @@ export default function FolderPage() {
   const [createFolderOpen, setCreateFolderOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedNoteId, setSelectedNoteId] = useState(null);
+  const [folderMenuAnchor, setFolderMenuAnchor] = useState(null);
 
   const mountedRef = useRef({ current: true });
 
@@ -85,14 +88,26 @@ export default function FolderPage() {
         includeArchived: false 
       });
 
+      // Check global status for each note
+      const notesWithGlobalStatus = await Promise.all(
+        folderNotes.map(async (note) => {
+          try {
+            const { isGlobal } = await globalAPI.checkGlobalStatus(note.id);
+            return { ...note, isGlobal };
+          } catch (err) {
+            return { ...note, isGlobal: false };
+          }
+        })
+      );
+
       // Load subfolders
       const folderSubfolders = await foldersAPI.getAll(folderId || null);
 
       if (mountedRef.current) {
-        setNotes(folderNotes);
+        setNotes(notesWithGlobalStatus);
         setSubfolders(folderSubfolders);
         logger.info('FolderPage', 'Data loaded', { 
-          notes: folderNotes.length, 
+          notes: notesWithGlobalStatus.length, 
           subfolders: folderSubfolders.length 
         });
       }
@@ -149,6 +164,42 @@ export default function FolderPage() {
     navigate(`/folders/${subfolderId}`);
   };
 
+  const handleShareFolderToGlobal = async () => {
+    try {
+      await globalAPI.shareFolder(folderId);
+      setFolderMenuAnchor(null);
+      showToast('🌍 Folder shared to global feed', 'success');
+    } catch (err) {
+      showToast(`❌ Failed to share folder: ${err.message}`, 'error');
+    }
+  };
+
+  const shareNoteToGlobal = async (noteId) => {
+    try {
+      await globalAPI.shareNote(noteId);
+      setNotes(notes.map(note => 
+        note.id === noteId ? { ...note, isGlobal: true } : note
+      ));
+      setAnchorEl(null);
+      showToast('🌍 Note shared to global feed', 'success');
+    } catch (err) {
+      showToast(`❌ Failed to share: ${err.message}`, 'error');
+    }
+  };
+
+  const removeNoteFromGlobal = async (noteId) => {
+    try {
+      await globalAPI.removeNote(noteId);
+      setNotes(notes.map(note => 
+        note.id === noteId ? { ...note, isGlobal: false } : note
+      ));
+      setAnchorEl(null);
+      showToast('🔒 Note removed from global feed', 'success');
+    } catch (err) {
+      showToast(`❌ Failed to remove: ${err.message}`, 'error');
+    }
+  };
+
   // Filter notes and folders by search query
   const filteredSubfolders = subfolders.filter((subfolder) =>
     subfolder.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -194,10 +245,15 @@ export default function FolderPage() {
         <IconButton onClick={() => navigate('/notes')}>
           <ArrowBackIcon />
         </IconButton>
-        <Typography variant="h4" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Typography variant="h4" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
           <FolderIcon />
           {folder ? folder.name : 'All Notes'}
         </Typography>
+        {folderId && (
+          <IconButton onClick={(e) => setFolderMenuAnchor(e.currentTarget)}>
+            <MoreVertIcon />
+          </IconButton>
+        )}
       </Stack>
 
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -367,17 +423,37 @@ export default function FolderPage() {
         </>
       )}
 
-      {/* Options Menu */}
+      {/* Note Options Menu */}
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={() => setAnchorEl(null)}
       >
+        {notes.find(n => n.id === selectedNoteId)?.isGlobal ? (
+          <MenuItem onClick={() => removeNoteFromGlobal(selectedNoteId)}>
+            <VisibilityOffIcon sx={{ mr: 1 }} /> Hide from Global
+          </MenuItem>
+        ) : (
+          <MenuItem onClick={() => shareNoteToGlobal(selectedNoteId)}>
+            <PublicIcon sx={{ mr: 1 }} /> Share to Global
+          </MenuItem>
+        )}
         <MenuItem onClick={() => handleArchiveNote(selectedNoteId)}>
           <ArchiveIcon sx={{ mr: 1 }} /> Archive
         </MenuItem>
         <MenuItem onClick={() => handleDeleteNote(selectedNoteId)} sx={{ color: 'error.main' }}>
           <DeleteIcon sx={{ mr: 1 }} /> Delete
+        </MenuItem>
+      </Menu>
+
+      {/* Folder Options Menu */}
+      <Menu
+        anchorEl={folderMenuAnchor}
+        open={Boolean(folderMenuAnchor)}
+        onClose={() => setFolderMenuAnchor(null)}
+      >
+        <MenuItem onClick={handleShareFolderToGlobal}>
+          <PublicIcon sx={{ mr: 1 }} /> Share All to Global
         </MenuItem>
       </Menu>
 

@@ -15,6 +15,7 @@ import NotesEditor from './pages/NotesEditor';
 import NoteViewer from './pages/NoteViewer';
 import SettingsPage from './pages/SettingsPage';
 import GlobalPage from './pages/GlobalPage';
+import GlobalFolderViewPage from './pages/GlobalFolderViewPage';
 import AdminPage from './pages/AdminPage';
 
 const createAppTheme = (themeType = 'default') => {
@@ -141,6 +142,7 @@ function AppRoutes() {
           <Route path="/folders/:folderId" element={user ? <FolderPage /> : <Navigate to="/login" />} />
           <Route path="/global" element={user ? <GlobalPage /> : <Navigate to="/login" />} />
           <Route path="/global/notes/:noteId" element={<NoteViewer />} />
+          <Route path="/global/folders/:folderId" element={<GlobalFolderViewPage />} />
           <Route path="/settings" element={user ? <SettingsPage /> : <Navigate to="/login" />} />
           <Route path="/admin" element={user ? <AdminPage /> : <Navigate to="/login" />} />
 

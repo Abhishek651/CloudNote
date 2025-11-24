@@ -10,37 +10,52 @@ const COLLECTIONS = {
   NOTES: 'notes',
   GLOBAL_NOTES: 'globalNotes',
   USERS: 'users',
+  FOLDERS: 'folders',
+  GLOBAL_FOLDERS: 'globalFolders',
 };
 
 /**
  * GET /api/global
- * Get all public global notes
+ * Get all public global notes and folders
  */
 router.get('/', async (req, res) => {
   try {
     const { limit = 20 } = req.query;
-    logger.info('GlobalAPI', 'Fetching global notes', { limit });
+    logger.info('GlobalAPI', 'Fetching global items', { limit });
 
-    const snapshot = await db.collection(COLLECTIONS.GLOBAL_NOTES)
+    const notesSnapshot = await db.collection(COLLECTIONS.GLOBAL_NOTES)
       .orderBy('createdAt', 'desc')
       .limit(parseInt(limit))
       .get();
 
-    const globalNotes = snapshot.docs.map(doc => ({
+    const foldersSnapshot = await db.collection(COLLECTIONS.GLOBAL_FOLDERS)
+      .orderBy('createdAt', 'desc')
+      .limit(parseInt(limit))
+      .get();
+
+    const globalNotes = notesSnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
+      itemType: 'note',
       createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
     }));
 
-    logger.info('GlobalAPI', 'Global notes fetched', { 
-      count: globalNotes.length,
-      firstNoteHasPhotoURL: globalNotes[0] ? !!globalNotes[0].authorPhotoURL : false,
-      firstNoteAuthorName: globalNotes[0]?.authorName
-    });
-    res.json(globalNotes);
+    const globalFolders = foldersSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      itemType: 'folder',
+      createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
+    }));
+
+    const allItems = [...globalNotes, ...globalFolders]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, parseInt(limit));
+
+    logger.info('GlobalAPI', 'Global items fetched', { notes: globalNotes.length, folders: globalFolders.length });
+    res.json(allItems);
   } catch (error) {
-    logger.error('GlobalAPI', 'Error fetching global notes', { error: error.message });
-    res.status(500).json({ error: 'Failed to fetch global notes', details: error.message });
+    logger.error('GlobalAPI', 'Error fetching global items', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch global items', details: error.message });
   }
 });
 
@@ -85,6 +100,9 @@ router.post('/', verifyToken, async (req, res) => {
       originalNoteId: noteId,
       title: noteData.title,
       content: noteData.content,
+      type: noteData.type,
+      fileUrl: noteData.fileUrl,
+      fileName: noteData.fileName,
       authorId: req.user.uid,
       authorName: userData.displayName || req.user.email || 'Anonymous',
       authorPhotoURL: userData.photoURL || null,
@@ -186,6 +204,241 @@ router.delete('/:noteId', verifyToken, async (req, res) => {
   } catch (error) {
     logger.error('GlobalAPI', 'Error removing note from global', { error: error.message });
     res.status(500).json({ error: 'Failed to remove note from global', details: error.message });
+  }
+});
+
+/**
+ * POST /api/global/folder
+ * Share folder to global feed with complete hierarchy
+ * Body: { folderId }
+ */
+router.post('/folder', verifyToken, async (req, res) => {
+  try {
+    const { folderId } = req.body;
+    logger.info('GlobalAPI', 'Sharing folder to global', { folderId, userId: req.user.uid });
+
+    if (!folderId) {
+      return res.status(400).json({ error: 'Folder ID is required' });
+    }
+
+    // Get folder
+    const folderDoc = await db.collection(COLLECTIONS.FOLDERS).doc(folderId).get();
+    if (!folderDoc.exists) {
+      return res.status(404).json({ error: 'Folder not found' });
+    }
+
+    const folderData = folderDoc.data();
+    if (folderData.ownerId !== req.user.uid) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Check if already shared
+    const existingGlobal = await db.collection(COLLECTIONS.GLOBAL_FOLDERS)
+      .where('originalFolderId', '==', folderId)
+      .where('authorId', '==', req.user.uid)
+      .get();
+
+    if (!existingGlobal.empty) {
+      return res.status(400).json({ error: 'Folder already shared to global' });
+    }
+
+    // Get user info
+    const userDoc = await db.collection(COLLECTIONS.USERS).doc(req.user.uid).get();
+    const userData = userDoc.exists ? userDoc.data() : {};
+
+    // Recursive function to build folder structure
+    const buildFolderStructure = async (parentId) => {
+      const structure = { folders: [], notes: [] };
+      
+      // Get subfolders
+      const subfoldersSnapshot = await db.collection(COLLECTIONS.FOLDERS)
+        .where('parentId', '==', parentId)
+        .where('ownerId', '==', req.user.uid)
+        .get();
+      
+      for (const subfolderDoc of subfoldersSnapshot.docs) {
+        const subfolderData = subfolderDoc.data();
+        const subStructure = await buildFolderStructure(subfolderDoc.id);
+        structure.folders.push({
+          id: subfolderDoc.id,
+          name: subfolderData.name,
+          ...subStructure
+        });
+      }
+      
+      // Get notes
+      const notesSnapshot = await db.collection(COLLECTIONS.NOTES)
+        .where('folderId', '==', parentId)
+        .where('ownerId', '==', req.user.uid)
+        .get();
+      
+      structure.notes = notesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      return structure;
+    };
+
+    const folderStructure = await buildFolderStructure(folderId);
+    
+    // Count total notes recursively
+    const countNotes = (structure) => {
+      let count = structure.notes.length;
+      structure.folders.forEach(folder => {
+        count += countNotes(folder);
+      });
+      return count;
+    };
+
+    const totalNotes = countNotes(folderStructure);
+
+    // Create global folder
+    const globalFolderData = {
+      originalFolderId: folderId,
+      name: folderData.name,
+      noteCount: totalNotes,
+      structure: folderStructure,
+      authorId: req.user.uid,
+      authorName: userData.displayName || req.user.email || 'Anonymous',
+      authorPhotoURL: userData.photoURL || null,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    const docRef = await db.collection(COLLECTIONS.GLOBAL_FOLDERS).add(globalFolderData);
+
+    logger.info('GlobalAPI', 'Folder shared to global', { id: docRef.id, totalNotes });
+    res.status(201).json({ id: docRef.id, message: 'Folder shared to global feed' });
+  } catch (error) {
+    logger.error('GlobalAPI', 'Error sharing folder to global', { error: error.message });
+    res.status(500).json({ error: 'Failed to share folder', details: error.message });
+  }
+});
+
+/**
+ * DELETE /api/global/folder/:folderId
+ * Remove a folder from global feed
+ */
+router.delete('/folder/:folderId', verifyToken, async (req, res) => {
+  try {
+    const { folderId } = req.params;
+    logger.info('GlobalAPI', 'Removing folder from global', { folderId, userId: req.user.uid });
+
+    const snapshot = await db.collection(COLLECTIONS.GLOBAL_FOLDERS)
+      .where('originalFolderId', '==', folderId)
+      .where('authorId', '==', req.user.uid)
+      .get();
+
+    if (snapshot.empty) {
+      return res.status(404).json({ error: 'Global folder not found' });
+    }
+
+    const batch = db.batch();
+    snapshot.docs.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+
+    logger.info('GlobalAPI', 'Folder removed from global', { folderId });
+    res.json({ message: 'Folder removed from global feed' });
+  } catch (error) {
+    logger.error('GlobalAPI', 'Error removing folder from global', { error: error.message });
+    res.status(500).json({ error: 'Failed to remove folder from global', details: error.message });
+  }
+});
+
+/**
+ * GET /api/global/folders/:id
+ * Get a global folder by ID
+ */
+router.get('/folders/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const doc = await db.collection(COLLECTIONS.GLOBAL_FOLDERS).doc(id).get();
+
+    if (!doc.exists) {
+      return res.status(404).json({ error: 'Global folder not found' });
+    }
+
+    const folder = {
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate(),
+    };
+
+    res.json(folder);
+  } catch (error) {
+    logger.error('GlobalAPI', 'Error fetching global folder', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch global folder', details: error.message });
+  }
+});
+
+/**
+ * GET /api/global/folders/:id/notes
+ * Get all notes in a global folder
+ */
+router.get('/folders/:id/notes', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get global folder
+    const folderDoc = await db.collection(COLLECTIONS.GLOBAL_FOLDERS).doc(id).get();
+    if (!folderDoc.exists) {
+      return res.status(404).json({ error: 'Global folder not found' });
+    }
+
+    const folderData = folderDoc.data();
+    const originalFolderId = folderData.originalFolderId;
+
+    // Get notes from original folder
+    const notesSnapshot = await db.collection(COLLECTIONS.NOTES)
+      .where('folderId', '==', originalFolderId)
+      .get();
+
+    const notes = notesSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
+      updatedAt: doc.data().updatedAt?.toDate?.() || doc.data().updatedAt,
+    }));
+
+    res.json(notes);
+  } catch (error) {
+    logger.error('GlobalAPI', 'Error fetching folder notes', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch folder notes', details: error.message });
+  }
+});
+
+/**
+ * GET /api/global/folders/:id/subfolders
+ * Get all subfolders in a global folder
+ */
+router.get('/folders/:id/subfolders', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Get global folder
+    const folderDoc = await db.collection(COLLECTIONS.GLOBAL_FOLDERS).doc(id).get();
+    if (!folderDoc.exists) {
+      return res.status(404).json({ error: 'Global folder not found' });
+    }
+
+    const folderData = folderDoc.data();
+    const originalFolderId = folderData.originalFolderId;
+
+    // Get subfolders from original folder
+    const subfoldersSnapshot = await db.collection(COLLECTIONS.FOLDERS)
+      .where('parentId', '==', originalFolderId)
+      .get();
+
+    const subfolders = subfoldersSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
+    }));
+
+    res.json(subfolders);
+  } catch (error) {
+    logger.error('GlobalAPI', 'Error fetching subfolders', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch subfolders', details: error.message });
   }
 });
 

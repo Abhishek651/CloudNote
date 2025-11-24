@@ -209,6 +209,22 @@ export const globalAPI = {
     return apiRequest(`/api/global/check/${noteId}`);
   },
 
+  async shareFolder(folderId) {
+    cacheManager.invalidatePattern('^GET:/api/global');
+    cacheManager.invalidatePattern('^GET:/api/notes');
+    return apiRequest('/api/global/folder', {
+      method: 'POST',
+      body: JSON.stringify({ folderId }),
+    });
+  },
+
+  async removeFolder(folderId) {
+    cacheManager.invalidatePattern('^GET:/api/global');
+    return apiRequest(`/api/global/folder/${folderId}`, {
+      method: 'DELETE',
+    });
+  },
+
   async getGlobalNote(id) {
     const response = await fetch(`${API_BASE_URL}/api/global/${id}`);
     if (!response.ok) {
