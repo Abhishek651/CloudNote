@@ -244,7 +244,15 @@ export default function GlobalPage() {
                   cursor: 'pointer',
                   '&:hover': { boxShadow: 3 }
                 }}
-                onClick={() => navigate(item.itemType === 'folder' ? `/global/folders/${item.id}` : `/global/notes/${item.id}`)}
+                onClick={() => {
+                  if (item.itemType === 'folder') {
+                    navigate(`/global/folders/${item.id}`);
+                  } else {
+                    // For notes, use originalNoteId if available, otherwise use the global note id
+                    const noteId = item.originalNoteId || item.id;
+                    navigate(`/global/notes/${noteId}`);
+                  }
+                }}
               >
                 <CardContent sx={{ flexGrow: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
