@@ -29,7 +29,8 @@ import {
   Folder as FolderIcon,
   Home as HomeIcon,
   Public as PublicIcon,
-  VisibilityOff as VisibilityOffIcon
+  VisibilityOff as VisibilityOffIcon,
+  Share as ShareIcon
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import logger from '../utils/logger';

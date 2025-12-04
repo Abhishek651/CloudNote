@@ -24,7 +24,7 @@ import {
   DialogContent,
   DialogActions,
 } from '@mui/material';
-import { MoreVert as MoreVertIcon, Delete as DeleteIcon, Archive as ArchiveIcon, Folder as FolderIcon, Star, StarBorder, Public as PublicIcon, VisibilityOff as VisibilityOffIcon, Download as DownloadIcon, Visibility as VisibilityIcon, PictureAsPdf as PdfIcon } from '@mui/icons-material';
+import { MoreVert as MoreVertIcon, Delete as DeleteIcon, Archive as ArchiveIcon, Folder as FolderIcon, Star, StarBorder, Public as PublicIcon, VisibilityOff as VisibilityOffIcon, Download as DownloadIcon, Visibility as VisibilityIcon, PictureAsPdf as PdfIcon, Share as ShareIcon, ContentCopy as ContentCopyIcon } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import logger from '../utils/logger';
