@@ -186,7 +186,7 @@ router.get('/shared/:shareToken', async (req, res) => {
 
 /**
  * GET /api/notes/:id
- * Get a single note by ID (verify ownership)
+ * Get a single note by ID (verify ownership or check if globally shared)
  */
 router.get('/:id', verifyToken, async (req, res) => {
   try {
@@ -201,9 +201,22 @@ router.get('/:id', verifyToken, async (req, res) => {
 
     const data = doc.data();
 
-    // Verify ownership
-    if (data.ownerId !== req.user.uid) {
-      return res.status(403).json({ error: 'Unauthorized' });
+    // Check if user is the owner
+    const isOwner = data.ownerId === req.user.uid;
+    
+    // If not owner, check if note is shared globally
+    if (!isOwner) {
+      const globalSnapshot = await db.collection('globalNotes')
+        .where('originalNoteId', '==', id)
+        .limit(1)
+        .get();
+      
+      if (globalSnapshot.empty) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
+      
+      // Note is globally shared, allow access
+      logger.info('NotesAPI', 'Note accessed via global share', { id, userId: req.user.uid });
     }
 
     const note = {

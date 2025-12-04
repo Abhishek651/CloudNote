@@ -356,7 +356,7 @@ router.get('/shared/:shareToken', async (req, res) => {
 
 /**
  * GET /api/folders/:id
- * Get single folder by ID (verify ownership)
+ * Get single folder by ID (verify ownership or check if globally shared)
  */
 router.get('/:id', verifyToken, async (req, res) => {
   try {
@@ -371,9 +371,22 @@ router.get('/:id', verifyToken, async (req, res) => {
 
     const data = doc.data();
 
-    // Verify ownership with proper validation
-    if (!data || !data.ownerId || data.ownerId !== req.user.uid) {
-      return res.status(403).json({ error: 'Unauthorized' });
+    // Check if user is the owner
+    const isOwner = data && data.ownerId && data.ownerId === req.user.uid;
+    
+    // If not owner, check if folder is shared globally
+    if (!isOwner) {
+      const globalSnapshot = await db.collection('globalFolders')
+        .where('originalFolderId', '==', id)
+        .limit(1)
+        .get();
+      
+      if (globalSnapshot.empty) {
+        return res.status(403).json({ error: 'Unauthorized' });
+      }
+      
+      // Folder is globally shared, allow access
+      logger.info('FoldersAPI', 'Folder accessed via global share', { id, userId: req.user.uid });
     }
 
     const folder = {
