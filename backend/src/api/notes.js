@@ -141,6 +141,50 @@ router.get('/', verifyToken, async (req, res) => {
 });
 
 /**
+ * GET /api/notes/shared/:shareToken
+ * Get note by share token (public access with auth requirement)
+ * IMPORTANT: This must come BEFORE /:id route
+ */
+router.get('/shared/:shareToken', async (req, res) => {
+  try {
+    const { shareToken } = req.params;
+    logger.info('NotesAPI', 'Fetching note by share token', { shareToken });
+
+    const snapshot = await db.collection(COLLECTIONS.NOTES)
+      .where('shareToken', '==', shareToken)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      return res.status(404).json({ error: 'Shared note not found' });
+    }
+
+    const doc = snapshot.docs[0];
+    const noteData = doc.data();
+    
+    // Get author info
+    const userDoc = await db.collection(COLLECTIONS.USERS).doc(noteData.ownerId).get();
+    const userData = userDoc.exists ? userDoc.data() : {};
+
+    const note = {
+      id: doc.id,
+      ...noteData,
+      authorName: userData.displayName || 'Anonymous',
+      authorPhotoURL: userData.photoURL || null,
+      createdAt: noteData.createdAt?.toDate(),
+      updatedAt: noteData.updatedAt?.toDate(),
+      requiresAuth: true,
+    };
+
+    logger.info('NotesAPI', 'Shared note fetched', { shareToken });
+    res.json(note);
+  } catch (error) {
+    logger.error('NotesAPI', 'Error fetching shared note', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch shared note', details: error.message });
+  }
+});
+
+/**
  * GET /api/notes/:id
  * Get a single note by ID (verify ownership)
  */
@@ -494,49 +538,6 @@ router.post('/:id/share', verifyToken, async (req, res) => {
   } catch (error) {
     logger.error('NotesAPI', 'Error generating share token', { error: error.message });
     res.status(500).json({ error: 'Failed to generate share token', details: error.message });
-  }
-});
-
-/**
- * GET /api/notes/shared/:shareToken
- * Get note by share token (public access with auth requirement)
- */
-router.get('/shared/:shareToken', async (req, res) => {
-  try {
-    const { shareToken } = req.params;
-    logger.info('NotesAPI', 'Fetching note by share token', { shareToken });
-
-    const snapshot = await db.collection(COLLECTIONS.NOTES)
-      .where('shareToken', '==', shareToken)
-      .limit(1)
-      .get();
-
-    if (snapshot.empty) {
-      return res.status(404).json({ error: 'Shared note not found' });
-    }
-
-    const doc = snapshot.docs[0];
-    const noteData = doc.data();
-    
-    // Get author info
-    const userDoc = await db.collection(COLLECTIONS.USERS).doc(noteData.ownerId).get();
-    const userData = userDoc.exists ? userDoc.data() : {};
-
-    const note = {
-      id: doc.id,
-      ...noteData,
-      authorName: userData.displayName || 'Anonymous',
-      authorPhotoURL: userData.photoURL || null,
-      createdAt: noteData.createdAt?.toDate(),
-      updatedAt: noteData.updatedAt?.toDate(),
-      requiresAuth: true,
-    };
-
-    logger.info('NotesAPI', 'Shared note fetched', { shareToken });
-    res.json(note);
-  } catch (error) {
-    logger.error('NotesAPI', 'Error fetching shared note', { error: error.message });
-    res.status(500).json({ error: 'Failed to fetch shared note', details: error.message });
   }
 });
 
