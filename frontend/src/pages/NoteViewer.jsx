@@ -74,8 +74,26 @@ export default function NoteViewer({ isShared = false }) {
         
         if (fromGlobal) {
           try {
+            // First get the global note to get metadata
             foundNote = await globalAPI.getGlobalNote(noteId);
             setIsGlobalNote(true);
+            
+            // If we have originalNoteId, try to fetch the actual note content
+            if (foundNote.originalNoteId && user) {
+              try {
+                const originalNote = await notesAPI.getById(foundNote.originalNoteId);
+                // Merge global metadata with original note content
+                foundNote = {
+                  ...originalNote,
+                  authorName: foundNote.authorName,
+                  authorPhotoURL: foundNote.authorPhotoURL,
+                  authorId: foundNote.authorId,
+                };
+              } catch (originalErr) {
+                // If can't access original, use global note data
+                logger.info('NoteViewer', 'Using global note data', { error: originalErr.message });
+              }
+            }
           } catch (globalErr) {
             if (user) {
               foundNote = await notesAPI.getById(noteId);
