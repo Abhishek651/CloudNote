@@ -388,6 +388,34 @@ router.put(
 
       await noteRef.update(updates);
 
+      // Auto-sync to global if shared
+      try {
+        const globalSnapshot = await db.collection('globalNotes')
+          .where('originalNoteId', '==', id)
+          .where('authorId', '==', req.user.uid)
+          .get();
+
+        if (!globalSnapshot.empty) {
+          const globalUpdates = {
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          };
+          if (title !== undefined) globalUpdates.title = title;
+          if (content !== undefined) globalUpdates.content = content;
+          if (req.body.type !== undefined) globalUpdates.type = req.body.type;
+          if (req.body.fileUrl !== undefined) globalUpdates.fileUrl = req.body.fileUrl;
+          if (req.body.fileName !== undefined) globalUpdates.fileName = req.body.fileName;
+
+          const batch = db.batch();
+          globalSnapshot.docs.forEach(doc => {
+            batch.update(doc.ref, globalUpdates);
+          });
+          await batch.commit();
+          logger.info('NotesAPI', 'Auto-synced note to global', { id });
+        }
+      } catch (syncError) {
+        logger.error('NotesAPI', 'Error auto-syncing note', { error: syncError.message });
+      }
+
       logger.info('NotesAPI', 'Note updated', { id });
       res.json({ message: 'Note updated successfully', id });
     } catch (error) {
@@ -425,6 +453,90 @@ router.delete('/:id', verifyToken, async (req, res) => {
   } catch (error) {
     logger.error('NotesAPI', 'Error deleting note', { error: error.message });
     res.status(500).json({ error: 'Failed to delete note', details: error.message });
+  }
+});
+
+/**
+ * POST /api/notes/:id/share
+ * Generate or get share token for a note (private sharing without global)
+ */
+router.post('/:id/share', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    logger.info('NotesAPI', 'Generating share token', { id, userId: req.user.uid });
+
+    const noteRef = db.collection(COLLECTIONS.NOTES).doc(id);
+    const doc = await noteRef.get();
+
+    if (!doc.exists) {
+      return res.status(404).json({ error: 'Note not found' });
+    }
+
+    const noteData = doc.data();
+    
+    // Verify ownership
+    if (noteData.ownerId !== req.user.uid) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Generate share token if not exists
+    let shareToken = noteData.shareToken;
+    if (!shareToken) {
+      shareToken = `${id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      await noteRef.update({
+        shareToken,
+        sharedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    logger.info('NotesAPI', 'Share token generated', { id, shareToken });
+    res.json({ shareToken, message: 'Share token generated' });
+  } catch (error) {
+    logger.error('NotesAPI', 'Error generating share token', { error: error.message });
+    res.status(500).json({ error: 'Failed to generate share token', details: error.message });
+  }
+});
+
+/**
+ * GET /api/notes/shared/:shareToken
+ * Get note by share token (public access with auth requirement)
+ */
+router.get('/shared/:shareToken', async (req, res) => {
+  try {
+    const { shareToken } = req.params;
+    logger.info('NotesAPI', 'Fetching note by share token', { shareToken });
+
+    const snapshot = await db.collection(COLLECTIONS.NOTES)
+      .where('shareToken', '==', shareToken)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      return res.status(404).json({ error: 'Shared note not found' });
+    }
+
+    const doc = snapshot.docs[0];
+    const noteData = doc.data();
+    
+    // Get author info
+    const userDoc = await db.collection(COLLECTIONS.USERS).doc(noteData.ownerId).get();
+    const userData = userDoc.exists ? userDoc.data() : {};
+
+    const note = {
+      id: doc.id,
+      ...noteData,
+      authorName: userData.displayName || 'Anonymous',
+      authorPhotoURL: userData.photoURL || null,
+      createdAt: noteData.createdAt?.toDate(),
+      updatedAt: noteData.updatedAt?.toDate(),
+      requiresAuth: true,
+    };
+
+    logger.info('NotesAPI', 'Shared note fetched', { shareToken });
+    res.json(note);
+  } catch (error) {
+    logger.error('NotesAPI', 'Error fetching shared note', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch shared note', details: error.message });
   }
 });
 

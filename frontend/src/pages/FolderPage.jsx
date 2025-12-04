@@ -164,24 +164,69 @@ export default function FolderPage() {
     navigate(`/folders/${subfolderId}`);
   };
 
+  const generateAndCopyFolderShareLink = async () => {
+    try {
+      // Generate share token (or get existing one)
+      const result = await foldersAPI.generateShareToken(folderId);
+      
+      // Copy share link to clipboard
+      const shareUrl = `${window.location.origin}/share/folder/${result.shareToken}`;
+      await navigator.clipboard.writeText(shareUrl);
+      setFolderMenuAnchor(null);
+      showToast('🔗 Folder share link copied!', 'success');
+    } catch (err) {
+      showToast(`❌ Failed to generate link: ${err.message}`, 'error');
+    }
+  };
+
   const handleShareFolderToGlobal = async () => {
     try {
-      await globalAPI.shareFolder(folderId);
+      const result = await globalAPI.shareFolder(folderId);
       setFolderMenuAnchor(null);
-      showToast('🌍 Folder shared to global feed', 'success');
+      
+      if (result.shareToken) {
+        const shareUrl = `${window.location.origin}/share/folder/${result.shareToken}`;
+        await navigator.clipboard.writeText(shareUrl);
+        showToast('🌍 Folder shared to global! Link copied', 'success');
+      } else {
+        showToast('🌍 Folder shared to global feed', 'success');
+      }
     } catch (err) {
       showToast(`❌ Failed to share folder: ${err.message}`, 'error');
     }
   };
 
+  const generateAndCopyNoteShareLink = async (noteId) => {
+    try {
+      const result = await notesAPI.generateShareToken(noteId);
+      setNotes(notes.map(note => 
+        note.id === noteId ? { ...note, shareToken: result.shareToken } : note
+      ));
+      
+      const shareUrl = `${window.location.origin}/share/note/${result.shareToken}`;
+      await navigator.clipboard.writeText(shareUrl);
+      setAnchorEl(null);
+      showToast('🔗 Share link copied!', 'success');
+    } catch (err) {
+      showToast(`❌ Failed to generate link: ${err.message}`, 'error');
+    }
+  };
+
   const shareNoteToGlobal = async (noteId) => {
     try {
-      await globalAPI.shareNote(noteId);
+      const result = await globalAPI.shareNote(noteId);
       setNotes(notes.map(note => 
-        note.id === noteId ? { ...note, isGlobal: true } : note
+        note.id === noteId ? { ...note, isGlobal: true, shareToken: result.shareToken } : note
       ));
       setAnchorEl(null);
-      showToast('🌍 Note shared to global feed', 'success');
+      
+      if (result.shareToken) {
+        const shareUrl = `${window.location.origin}/share/note/${result.shareToken}`;
+        await navigator.clipboard.writeText(shareUrl);
+        showToast('🌍 Note shared to global! Link copied', 'success');
+      } else {
+        showToast('🌍 Note shared to global feed', 'success');
+      }
     } catch (err) {
       showToast(`❌ Failed to share: ${err.message}`, 'error');
     }
@@ -429,13 +474,16 @@ export default function FolderPage() {
         open={Boolean(anchorEl)}
         onClose={() => setAnchorEl(null)}
       >
+        <MenuItem onClick={() => generateAndCopyNoteShareLink(selectedNoteId)}>
+          <PublicIcon sx={{ mr: 1 }} /> Get Share Link
+        </MenuItem>
         {notes.find(n => n.id === selectedNoteId)?.isGlobal ? (
           <MenuItem onClick={() => removeNoteFromGlobal(selectedNoteId)}>
             <VisibilityOffIcon sx={{ mr: 1 }} /> Hide from Global
           </MenuItem>
         ) : (
           <MenuItem onClick={() => shareNoteToGlobal(selectedNoteId)}>
-            <PublicIcon sx={{ mr: 1 }} /> Share to Global
+            <PublicIcon sx={{ mr: 1 }} /> Share to Global Feed
           </MenuItem>
         )}
         <MenuItem onClick={() => handleArchiveNote(selectedNoteId)}>
@@ -452,8 +500,11 @@ export default function FolderPage() {
         open={Boolean(folderMenuAnchor)}
         onClose={() => setFolderMenuAnchor(null)}
       >
+        <MenuItem onClick={generateAndCopyFolderShareLink}>
+          <PublicIcon sx={{ mr: 1 }} /> Get Share Link
+        </MenuItem>
         <MenuItem onClick={handleShareFolderToGlobal}>
-          <PublicIcon sx={{ mr: 1 }} /> Share All to Global
+          <PublicIcon sx={{ mr: 1 }} /> Share to Global Feed
         </MenuItem>
       </Menu>
 

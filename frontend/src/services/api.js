@@ -123,6 +123,21 @@ export const notesAPI = {
       method: 'DELETE',
     });
   },
+
+  async generateShareToken(id) {
+    return apiRequest(`/api/notes/${id}/share`, {
+      method: 'POST',
+    });
+  },
+
+  async getByShareToken(shareToken) {
+    const response = await fetch(`${API_BASE_URL}/api/notes/shared/${shareToken}`);
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Request failed' }));
+      throw new Error(error.error || `HTTP ${response.status}`);
+    }
+    return response.json();
+  },
 };
 
 /**
@@ -159,6 +174,21 @@ export const foldersAPI = {
     return apiRequest(`/api/folders/${id}`, {
       method: 'DELETE',
     });
+  },
+
+  async generateShareToken(id) {
+    return apiRequest(`/api/folders/${id}/share`, {
+      method: 'POST',
+    });
+  },
+
+  async getByShareToken(shareToken) {
+    const response = await fetch(`${API_BASE_URL}/api/folders/shared/${shareToken}`);
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Request failed' }));
+      throw new Error(error.error || `HTTP ${response.status}`);
+    }
+    return response.json();
   },
 };
 
@@ -232,6 +262,20 @@ export const globalAPI = {
       throw new Error(error.error || `HTTP ${response.status}`);
     }
     return response.json();
+  },
+
+  async syncNote(noteId) {
+    cacheManager.invalidatePattern('^GET:/api/global');
+    return apiRequest(`/api/global/sync/${noteId}`, {
+      method: 'POST',
+    });
+  },
+
+  async syncFolder(folderId) {
+    cacheManager.invalidatePattern('^GET:/api/global');
+    return apiRequest(`/api/global/sync/folder/${folderId}`, {
+      method: 'POST',
+    });
   },
 };
 

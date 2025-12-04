@@ -19,8 +19,10 @@ import {
   InputLabel,
   Stack,
   Paper,
+  Snackbar,
+  Alert,
 } from '@mui/material';
-import { Public, AccessTime, Download, PictureAsPdf, Folder, VisibilityOff, MoreVert, FilterList, ExpandMore, ExpandLess } from '@mui/icons-material';
+import { Public, AccessTime, Download, PictureAsPdf, Folder, VisibilityOff, MoreVert, FilterList, ExpandMore, ExpandLess, Share, ContentCopy } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { globalAPI, cacheAPI } from '../services/api';
@@ -37,6 +39,7 @@ export default function GlobalPage() {
   const [filterType, setFilterType] = useState('all');
   const [filterAuthor, setFilterAuthor] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   const loadGlobalNotes = async () => {
     try {
@@ -63,6 +66,20 @@ export default function GlobalPage() {
     } catch (error) {
       console.error('Failed to remove item:', error);
     }
+  };
+
+  const handleCopyShareLink = (item) => {
+    const baseUrl = window.location.origin;
+    const shareUrl = item.itemType === 'folder' 
+      ? `${baseUrl}/share/folder/${item.shareToken}`
+      : `${baseUrl}/share/note/${item.shareToken}`;
+    
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      setSnackbar({ open: true, message: 'Share link copied to clipboard!', severity: 'success' });
+      setAnchorEl(null);
+    }).catch(() => {
+      setSnackbar({ open: true, message: 'Failed to copy link', severity: 'error' });
+    });
   };
 
   useEffect(() => {
@@ -268,6 +285,19 @@ export default function GlobalPage() {
                           </IconButton>
                         </Tooltip>
                       )}
+                      {item.shareToken && (
+                        <Tooltip title="Copy share link">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCopyShareLink(item);
+                            }}
+                          >
+                            <Share fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                       {user && item.authorId === user.uid && (
                         <IconButton
                           size="small"
@@ -329,10 +359,27 @@ export default function GlobalPage() {
           setSelectedItem(null);
         }}
       >
+        {selectedItem?.shareToken && (
+          <MenuItem onClick={() => handleCopyShareLink(selectedItem)}>
+            <ContentCopy sx={{ mr: 1 }} /> Copy Share Link
+          </MenuItem>
+        )}
         <MenuItem onClick={handleRemoveItem}>
           <VisibilityOff sx={{ mr: 1 }} /> Remove from Global
         </MenuItem>
       </Menu>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity={snackbar.severity} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 }

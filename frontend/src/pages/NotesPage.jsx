@@ -180,14 +180,43 @@ export default function NotesPage() {
     }
   };
 
+  const generateAndCopyShareLink = async (noteId) => {
+    try {
+      // Generate share token (or get existing one)
+      const result = await notesAPI.generateShareToken(noteId);
+      
+      // Update local state
+      setNotes(notes.map(note => 
+        note.id === noteId ? { ...note, shareToken: result.shareToken } : note
+      ));
+      
+      // Copy share link to clipboard
+      const shareUrl = `${window.location.origin}/share/note/${result.shareToken}`;
+      await navigator.clipboard.writeText(shareUrl);
+      setAnchorEl(null);
+      showToast('🔗 Share link copied to clipboard!', 'success');
+    } catch (err) {
+      logger.error('NotesPage', 'Failed to generate share link', { error: err.message });
+      showToast(`❌ Failed to generate link: ${err.message}`, 'error');
+    }
+  };
+
   const shareToGlobal = async (noteId) => {
     try {
-      await globalAPI.shareNote(noteId);
+      const result = await globalAPI.shareNote(noteId);
       setNotes(notes.map(note => 
-        note.id === noteId ? { ...note, isGlobal: true } : note
+        note.id === noteId ? { ...note, isGlobal: true, shareToken: result.shareToken } : note
       ));
       setAnchorEl(null);
-      showToast('🌍 Note shared to global feed', 'success');
+      
+      // Copy share link to clipboard
+      if (result.shareToken) {
+        const shareUrl = `${window.location.origin}/share/note/${result.shareToken}`;
+        await navigator.clipboard.writeText(shareUrl);
+        showToast('🌍 Note shared to global! Link copied', 'success');
+      } else {
+        showToast('🌍 Note shared to global feed', 'success');
+      }
     } catch (err) {
       logger.error('NotesPage', 'Failed to share to global', { error: err.message });
       showToast(`❌ Failed to share: ${err.message}`, 'error');
@@ -552,6 +581,14 @@ export default function NotesPage() {
                 <DownloadIcon sx={{ mr: 1 }} /> Download PDF
               </MenuItem>
             ] : []),
+            <MenuItem
+              key="get-link"
+              onClick={() => {
+                generateAndCopyShareLink(selectedNoteId);
+              }}
+            >
+              <ShareIcon sx={{ mr: 1 }} /> Get Share Link
+            </MenuItem>,
             ...(notes.find(n => n.id === selectedNoteId)?.isGlobal ? [
               <MenuItem
                 key="remove-global"
@@ -568,7 +605,7 @@ export default function NotesPage() {
                   shareToGlobal(selectedNoteId);
                 }}
               >
-                <PublicIcon sx={{ mr: 1 }} /> Share to Global
+                <PublicIcon sx={{ mr: 1 }} /> Share to Global Feed
               </MenuItem>
             ]),
             <MenuItem

@@ -3,40 +3,80 @@
 *Your Smart Note-Taking App*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/yourusername/cloudenote)
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/yourusername/cloudenote)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.19.0-brightgreen.svg)](https://nodejs.org/)
+[![Live Demo](https://img.shields.io/badge/demo-live-success.svg)](https://cloudxnote.vercel.app)
+
+## 🌐 Live Demo
+
+**Visit CloudNote:** [https://cloudxnote.vercel.app](https://cloudxnote.vercel.app)
+
+**Demo Account:**
+- Email: bhagatabhishek772@gmail.com
+- Password: (Contact for demo access)
 
 ## Overview 🌟
 
-CloudNote is a modern, mobile-first responsive note-taking web application designed to help users organize their thoughts, ideas, and information efficiently. Built with cutting-edge technologies, it offers a seamless experience across devices with powerful features like real-time collaboration, AI-powered enhancements, and intuitive folder organization.
+CloudNote is a modern, feature-rich note-taking web application designed to help users organize their thoughts, ideas, and information efficiently. Built with cutting-edge technologies, it offers a seamless experience across devices with powerful features like global sharing, PDF support, rich text editing, and intuitive folder organization.
 
 ### Key Highlights:
-- **Mobile-First Design**: Optimized for smartphones and tablets with responsive layouts
-- **Real-Time Collaboration**: Share folders with other users and collaborate in real-time
-- **AI-Powered Features**: Leverage artificial intelligence for summarization, suggestions, and smart content generation
-- **Secure Authentication**: Firebase-powered authentication with email/password support
-- **Rich Text Editing**: Create and edit notes with rich formatting capabilities
-- **Cloud Storage**: All data stored securely in Firebase Firestore and Storage
+- **Mobile-First Design**: Fully responsive design optimized for all devices
+- **Global Sharing**: Share notes and folders publicly with unique shareable links
+- **Rich Text Editor**: Advanced formatting with code syntax highlighting
+- **PDF Support**: Upload, view, and share PDF documents
+- **Secure Authentication**: Firebase-powered authentication with "Remember Me" option
+- **Folder Organization**: Hierarchical folder structure with nested folders
+- **Real-Time Sync**: Automatic synchronization of shared content
+- **Cloud Storage**: All data stored securely in Firebase Firestore
 
 The application consists of a React + Vite frontend for a fast, interactive user interface and an Express backend API for server-side logic and Firebase integration.
 
 ## Features ✨
 
-- ✅ **User Authentication**: Secure login, signup, and password reset functionality
-- ✅ **Notes Management**: Create, edit, delete notes with rich text editor
-- ✅ **Folder Organization**: Organize notes into hierarchical folders for better structure
-- ✅ **Collaboration**: Share folders with other users (view/edit permissions)
-- ✅ **Customizable Themes**: Personalize the app with different color schemes and themes
-- ✅ **Profile Management**: Update user profiles and preferences
-- ✅ **AI-Powered Features**:
-  - 📋 Note summarization
-  - 💡 Smart content suggestions
-  - ✏️ Grammar and spelling check
-  - 🏷️ Auto-tagging
-  - 🔍 Semantic search
-  - 📄 Template generation
-- ✅ **Mobile-First Responsive Design**: Seamless experience on all devices
-- ✅ **Progressive Web App (PWA) Support**: Install as an app on mobile devices
+### 🔐 Authentication & User Management
+- ✅ **Secure Login/Signup**: Email and password authentication via Firebase
+- ✅ **Remember Me**: Stay logged in across browser sessions
+- ✅ **Password Reset**: Email-based password recovery
+- ✅ **Profile Management**: Update display name, photo, and theme preferences
+- ✅ **Admin Dashboard**: User management and system statistics (admin only)
+
+### � Nootes Management
+- ✅ **Rich Text Editor**: Advanced formatting with bold, italic, headings, lists, code blocks
+- ✅ **Code Syntax Highlighting**: Beautiful code blocks with copy functionality
+- ✅ **PDF Support**: Upload, view, and download PDF documents
+- ✅ **Tags System**: Organize notes with custom tags
+- ✅ **Favorites**: Mark important notes for quick access
+- ✅ **Archive**: Archive old notes to keep workspace clean
+- ✅ **Search & Filter**: Find notes by title, content, tags, or date
+- ✅ **Word Wrap Toggle**: Control text wrapping in note viewer
+
+### 📁 Folder Organization
+- ✅ **Hierarchical Folders**: Create nested folder structures
+- ✅ **Drag & Drop**: Move notes between folders easily
+- ✅ **Folder Management**: Create, rename, delete folders
+- ✅ **Root & Nested Views**: Navigate through folder hierarchy
+
+### 🌍 Global Sharing
+- ✅ **Share to Global Feed**: Make notes and folders publicly discoverable
+- ✅ **Shareable Links**: Generate unique links for notes and folders
+- ✅ **Authentication Gate**: Require login to view shared content
+- ✅ **Real-Time Sync**: Updates to shared content sync automatically
+- ✅ **Author Attribution**: Display author name and photo on shared content
+- ✅ **Remove from Global**: Unshare content anytime
+
+### 🎨 Customization
+- ✅ **6 Theme Options**: Default, Blue, Green, Orange, Pink, Dark
+- ✅ **Responsive Design**: Optimized for mobile, tablet, and desktop
+- ✅ **Material-UI Components**: Modern, accessible UI components
+- ✅ **Smooth Animations**: Polished transitions and hover effects
+
+### 🔧 Technical Features
+- ✅ **Real-Time Database**: Firebase Firestore for instant data sync
+- ✅ **Cloud Storage**: Backblaze B2 for PDF file storage
+- ✅ **API Caching**: Smart caching for improved performance
+- ✅ **Error Handling**: Comprehensive error logging and user feedback
+- ✅ **Security Rules**: Firestore security rules for data protection
+- ✅ **CORS Protection**: Secure cross-origin requests
 
 ## Tech Stack 🛠️
 
@@ -222,29 +262,104 @@ We welcome contributions to CloudNote! Please follow these guidelines:
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Roadmap 🗺️
+## Development Status 🗺️
 
-- **Phase 1: ✅ Project Setup** - Initialize frontend and backend with modern tooling
-- **Phase 2: 🔄 Firebase Integration** - Connect Firebase services to both frontend and backend
-- **Phase 3: 🔄 Authentication System** - Implement login, signup, and user management
-- **Phase 4: 🔄 Notes CRUD Operations** - Create, read, update, delete notes functionality
-- **Phase 5: 🔄 Folder Management** - Organize notes into folders with CRUD operations
-- **Phase 6: 🔄 Collaboration Features** - Share folders and collaborate with other users
-- **Phase 7: 🔄 Settings & Theming** - User preferences and customizable themes
-- **Phase 8: 🔄 AI Features Part 1** - Basic AI integration (summarization, suggestions)
-- **Phase 9: 🔄 AI Features Part 2** - Advanced AI features (semantic search, templates)
-- **Phase 10: 🔄 Mobile Responsiveness & Deployment** - Final polish and production deployment
+- **Phase 1: ✅ Project Setup** - Completed
+- **Phase 2: ✅ Firebase Integration** - Completed
+- **Phase 3: ✅ Authentication System** - Completed (with Remember Me)
+- **Phase 4: ✅ Notes CRUD Operations** - Completed (with PDF support)
+- **Phase 5: ✅ Folder Management** - Completed (with nested folders)
+- **Phase 6: ✅ Global Sharing** - Completed (with shareable links)
+- **Phase 7: ✅ Settings & Theming** - Completed (6 themes available)
+- **Phase 8: ✅ Admin Dashboard** - Completed (user management)
+- **Phase 9: ✅ Production Deployment** - Completed (Vercel)
+- **Phase 10: 🔄 Future Enhancements** - Planned features below
 
-## Screenshots/Demo 📸
+## Future Enhancements 🚀
 
-Screenshots and demo links will be added once the UI is fully implemented.
+### Planned Features
+- 🔄 **Real-Time Collaboration**: Multiple users editing same note
+- 🔄 **AI Integration**: Smart summarization and content suggestions
+- 🔄 **Export Options**: Export notes to PDF, Markdown, or Word
+- 🔄 **Import Notes**: Import from other note-taking apps
+- 🔄 **Note Templates**: Pre-built templates for common use cases
+- 🔄 **Version History**: Track changes and restore previous versions
+- 🔄 **Comments**: Add comments to shared notes
+- 🔄 **Notifications**: Get notified of updates to shared content
+- 🔄 **Mobile App**: Native iOS and Android applications
+- 🔄 **Offline Mode**: Work without internet connection
+- 🔄 **Advanced Search**: Full-text search with filters
+- 🔄 **Keyboard Shortcuts**: Power user productivity features
 
-For now, refer to the design mockup for the visual concept.
+## API Endpoints 📡
+
+### Authentication
+- `GET /api/auth/profile` - Get current user profile
+- `POST /api/users/profile` - Update user profile
+
+### Notes
+- `GET /api/notes` - Get all notes (with filters)
+- `GET /api/notes/:id` - Get single note
+- `POST /api/notes` - Create new note
+- `PUT /api/notes/:id` - Update note
+- `DELETE /api/notes/:id` - Delete note
+
+### Folders
+- `GET /api/folders` - Get all folders
+- `GET /api/folders/:id` - Get single folder
+- `POST /api/folders` - Create new folder
+- `PUT /api/folders/:id` - Update folder
+- `DELETE /api/folders/:id` - Delete folder
+
+### Global Sharing
+- `GET /api/global` - Get all global notes/folders
+- `GET /api/global/:id` - Get single global note
+- `POST /api/global` - Share note to global
+- `POST /api/global/folder` - Share folder to global
+- `DELETE /api/global/:noteId` - Remove note from global
+- `DELETE /api/global/folder/:folderId` - Remove folder from global
+- `GET /api/global/share/note/:shareToken` - Get note by share link
+- `GET /api/global/share/folder/:shareToken` - Get folder by share link
+- `POST /api/global/sync/:noteId` - Sync note to global
+- `POST /api/global/sync/folder/:folderId` - Sync folder to global
+
+### File Upload
+- `POST /api/upload/pdf` - Upload PDF file
+- `POST /api/upload/b2` - Upload to Backblaze B2
+
+### Admin (Admin Only)
+- `GET /api/admin/users` - Get all users
+- `GET /api/admin/stats` - Get system statistics
+- `GET /api/admin/users/:uid` - Get user details
+- `DELETE /api/admin/users/:uid` - Delete user
+- `POST /api/admin/users/:uid/reset-password` - Reset user password
+
+## Usage Tips 💡
+
+### Getting Started
+1. **Sign Up**: Create an account at [cloudxnote.vercel.app](https://cloudxnote.vercel.app)
+2. **Create Notes**: Click "New Note" to start writing
+3. **Organize**: Create folders to organize your notes
+4. **Share**: Share notes globally and get shareable links
+5. **Customize**: Change themes in Settings
+
+### Keyboard Shortcuts
+- `Ctrl/Cmd + S` - Save note (auto-saves)
+- `Ctrl/Cmd + B` - Bold text
+- `Ctrl/Cmd + I` - Italic text
+- `Ctrl/Cmd + K` - Insert link
+
+### Best Practices
+- Use **tags** to categorize notes across folders
+- **Archive** old notes instead of deleting them
+- Use **folders** for project-based organization
+- **Share to global** to make notes discoverable
+- Enable **Remember Me** for convenience on trusted devices
 
 ## Support & Contact 💬
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/cloudenote/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/cloudenote/discussions)
-- **Email**: support@cloudenote.app (placeholder)
+- **Live Demo**: [https://cloudxnote.vercel.app](https://cloudxnote.vercel.app)
+- **Email**: bhagatabhishek772@gmail.com
+- **Issues**: Report bugs or request features via GitHub Issues
 
-For questions or support, please create an issue on GitHub or join our community discussions.
+For questions or support, please reach out via email or create an issue on GitHub.

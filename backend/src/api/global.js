@@ -95,6 +95,9 @@ router.post('/', verifyToken, async (req, res) => {
       photoURLLength: userData.photoURL?.length || 0
     });
 
+    // Generate share token
+    const shareToken = `${noteId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
     // Create global note
     const globalNoteData = {
       originalNoteId: noteId,
@@ -106,7 +109,9 @@ router.post('/', verifyToken, async (req, res) => {
       authorId: req.user.uid,
       authorName: userData.displayName || req.user.email || 'Anonymous',
       authorPhotoURL: userData.photoURL || null,
+      shareToken,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
     logger.info('GlobalAPI', 'Creating global note with data', { 
@@ -117,7 +122,7 @@ router.post('/', verifyToken, async (req, res) => {
     const docRef = await db.collection(COLLECTIONS.GLOBAL_NOTES).add(globalNoteData);
 
     logger.info('GlobalAPI', 'Note shared to global', { id: docRef.id });
-    res.status(201).json({ id: docRef.id, message: 'Note shared to global feed' });
+    res.status(201).json({ id: docRef.id, shareToken, message: 'Note shared to global feed' });
   } catch (error) {
     logger.error('GlobalAPI', 'Error sharing note to global', { error: error.message });
     res.status(500).json({ error: 'Failed to share note', details: error.message });
@@ -293,6 +298,9 @@ router.post('/folder', verifyToken, async (req, res) => {
 
     const totalNotes = countNotes(folderStructure);
 
+    // Generate share token
+    const shareToken = `${folderId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
     // Create global folder
     const globalFolderData = {
       originalFolderId: folderId,
@@ -302,13 +310,15 @@ router.post('/folder', verifyToken, async (req, res) => {
       authorId: req.user.uid,
       authorName: userData.displayName || req.user.email || 'Anonymous',
       authorPhotoURL: userData.photoURL || null,
+      shareToken,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
     const docRef = await db.collection(COLLECTIONS.GLOBAL_FOLDERS).add(globalFolderData);
 
     logger.info('GlobalAPI', 'Folder shared to global', { id: docRef.id, totalNotes });
-    res.status(201).json({ id: docRef.id, message: 'Folder shared to global feed' });
+    res.status(201).json({ id: docRef.id, shareToken, message: 'Folder shared to global feed' });
   } catch (error) {
     logger.error('GlobalAPI', 'Error sharing folder to global', { error: error.message });
     res.status(500).json({ error: 'Failed to share folder', details: error.message });
@@ -439,6 +449,218 @@ router.get('/folders/:id/subfolders', async (req, res) => {
   } catch (error) {
     logger.error('GlobalAPI', 'Error fetching subfolders', { error: error.message });
     res.status(500).json({ error: 'Failed to fetch subfolders', details: error.message });
+  }
+});
+
+/**
+ * GET /api/global/share/note/:shareToken
+ * Get note by share token (public access with auth requirement)
+ */
+router.get('/share/note/:shareToken', async (req, res) => {
+  try {
+    const { shareToken } = req.params;
+    logger.info('GlobalAPI', 'Fetching note by share token', { shareToken });
+
+    const snapshot = await db.collection(COLLECTIONS.GLOBAL_NOTES)
+      .where('shareToken', '==', shareToken)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      return res.status(404).json({ error: 'Shared note not found' });
+    }
+
+    const doc = snapshot.docs[0];
+    const note = {
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate(),
+      requiresAuth: true,
+    };
+
+    res.json(note);
+  } catch (error) {
+    logger.error('GlobalAPI', 'Error fetching shared note', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch shared note', details: error.message });
+  }
+});
+
+/**
+ * GET /api/global/share/folder/:shareToken
+ * Get folder by share token (public access with auth requirement)
+ */
+router.get('/share/folder/:shareToken', async (req, res) => {
+  try {
+    const { shareToken } = req.params;
+    logger.info('GlobalAPI', 'Fetching folder by share token', { shareToken });
+
+    const snapshot = await db.collection(COLLECTIONS.GLOBAL_FOLDERS)
+      .where('shareToken', '==', shareToken)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      return res.status(404).json({ error: 'Shared folder not found' });
+    }
+
+    const doc = snapshot.docs[0];
+    const folder = {
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate(),
+      requiresAuth: true,
+    };
+
+    res.json(folder);
+  } catch (error) {
+    logger.error('GlobalAPI', 'Error fetching shared folder', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch shared folder', details: error.message });
+  }
+});
+
+/**
+ * POST /api/global/sync/:noteId
+ * Sync updates from original note to global note
+ */
+router.post('/sync/:noteId', verifyToken, async (req, res) => {
+  try {
+    const { noteId } = req.params;
+    logger.info('GlobalAPI', 'Syncing note to global', { noteId, userId: req.user.uid });
+
+    // Get the original note
+    const noteDoc = await db.collection(COLLECTIONS.NOTES).doc(noteId).get();
+    if (!noteDoc.exists) {
+      return res.status(404).json({ error: 'Note not found' });
+    }
+
+    const noteData = noteDoc.data();
+    if (noteData.ownerId !== req.user.uid) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Find global note
+    const globalSnapshot = await db.collection(COLLECTIONS.GLOBAL_NOTES)
+      .where('originalNoteId', '==', noteId)
+      .where('authorId', '==', req.user.uid)
+      .get();
+
+    if (globalSnapshot.empty) {
+      return res.status(404).json({ error: 'Note not shared globally' });
+    }
+
+    // Update global note
+    const batch = db.batch();
+    globalSnapshot.docs.forEach(doc => {
+      batch.update(doc.ref, {
+        title: noteData.title,
+        content: noteData.content,
+        type: noteData.type,
+        fileUrl: noteData.fileUrl,
+        fileName: noteData.fileName,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+    await batch.commit();
+
+    logger.info('GlobalAPI', 'Note synced to global', { noteId });
+    res.json({ message: 'Note synced successfully' });
+  } catch (error) {
+    logger.error('GlobalAPI', 'Error syncing note', { error: error.message });
+    res.status(500).json({ error: 'Failed to sync note', details: error.message });
+  }
+});
+
+/**
+ * POST /api/global/sync/folder/:folderId
+ * Sync updates from original folder to global folder
+ */
+router.post('/sync/folder/:folderId', verifyToken, async (req, res) => {
+  try {
+    const { folderId } = req.params;
+    logger.info('GlobalAPI', 'Syncing folder to global', { folderId, userId: req.user.uid });
+
+    // Get folder
+    const folderDoc = await db.collection(COLLECTIONS.FOLDERS).doc(folderId).get();
+    if (!folderDoc.exists) {
+      return res.status(404).json({ error: 'Folder not found' });
+    }
+
+    const folderData = folderDoc.data();
+    if (folderData.ownerId !== req.user.uid) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Find global folder
+    const globalSnapshot = await db.collection(COLLECTIONS.GLOBAL_FOLDERS)
+      .where('originalFolderId', '==', folderId)
+      .where('authorId', '==', req.user.uid)
+      .get();
+
+    if (globalSnapshot.empty) {
+      return res.status(404).json({ error: 'Folder not shared globally' });
+    }
+
+    // Rebuild folder structure
+    const buildFolderStructure = async (parentId) => {
+      const structure = { folders: [], notes: [] };
+      
+      const subfoldersSnapshot = await db.collection(COLLECTIONS.FOLDERS)
+        .where('parentId', '==', parentId)
+        .where('ownerId', '==', req.user.uid)
+        .get();
+      
+      for (const subfolderDoc of subfoldersSnapshot.docs) {
+        const subfolderData = subfolderDoc.data();
+        const subStructure = await buildFolderStructure(subfolderDoc.id);
+        structure.folders.push({
+          id: subfolderDoc.id,
+          name: subfolderData.name,
+          ...subStructure
+        });
+      }
+      
+      const notesSnapshot = await db.collection(COLLECTIONS.NOTES)
+        .where('folderId', '==', parentId)
+        .where('ownerId', '==', req.user.uid)
+        .get();
+      
+      structure.notes = notesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      return structure;
+    };
+
+    const folderStructure = await buildFolderStructure(folderId);
+    
+    const countNotes = (structure) => {
+      let count = structure.notes.length;
+      structure.folders.forEach(folder => {
+        count += countNotes(folder);
+      });
+      return count;
+    };
+
+    const totalNotes = countNotes(folderStructure);
+
+    // Update global folder
+    const batch = db.batch();
+    globalSnapshot.docs.forEach(doc => {
+      batch.update(doc.ref, {
+        name: folderData.name,
+        noteCount: totalNotes,
+        structure: folderStructure,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+    await batch.commit();
+
+    logger.info('GlobalAPI', 'Folder synced to global', { folderId, totalNotes });
+    res.json({ message: 'Folder synced successfully' });
+  } catch (error) {
+    logger.error('GlobalAPI', 'Error syncing folder', { error: error.message });
+    res.status(500).json({ error: 'Failed to sync folder', details: error.message });
   }
 });
 

@@ -199,6 +199,74 @@ router.put('/:id', verifyToken, async (req, res) => {
 
     await folderRef.update(updates);
 
+    // Auto-sync to global if shared
+    try {
+      const globalSnapshot = await db.collection('globalFolders')
+        .where('originalFolderId', '==', id)
+        .where('authorId', '==', req.user.uid)
+        .get();
+
+      if (!globalSnapshot.empty) {
+        // Rebuild folder structure
+        const buildFolderStructure = async (parentId) => {
+          const structure = { folders: [], notes: [] };
+          
+          const subfoldersSnapshot = await db.collection(COLLECTIONS.FOLDERS)
+            .where('parentId', '==', parentId)
+            .where('ownerId', '==', req.user.uid)
+            .get();
+          
+          for (const subfolderDoc of subfoldersSnapshot.docs) {
+            const subfolderData = subfolderDoc.data();
+            const subStructure = await buildFolderStructure(subfolderDoc.id);
+            structure.folders.push({
+              id: subfolderDoc.id,
+              name: subfolderData.name,
+              ...subStructure
+            });
+          }
+          
+          const notesSnapshot = await db.collection(COLLECTIONS.NOTES)
+            .where('folderId', '==', parentId)
+            .where('ownerId', '==', req.user.uid)
+            .get();
+          
+          structure.notes = notesSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+          
+          return structure;
+        };
+
+        const folderStructure = await buildFolderStructure(id);
+        
+        const countNotes = (structure) => {
+          let count = structure.notes.length;
+          structure.folders.forEach(folder => {
+            count += countNotes(folder);
+          });
+          return count;
+        };
+
+        const totalNotes = countNotes(folderStructure);
+
+        const batch = db.batch();
+        globalSnapshot.docs.forEach(doc => {
+          batch.update(doc.ref, {
+            name: updates.name || folderData.name,
+            noteCount: totalNotes,
+            structure: folderStructure,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        });
+        await batch.commit();
+        logger.info('FoldersAPI', 'Auto-synced folder to global', { id });
+      }
+    } catch (syncError) {
+      logger.error('FoldersAPI', 'Error auto-syncing folder', { error: syncError.message });
+    }
+
     logger.info('FoldersAPI', 'Folder updated', { id });
     res.json({ message: 'Folder updated successfully', id });
   } catch (error) {
@@ -285,6 +353,125 @@ router.delete('/:id', verifyToken, async (req, res) => {
   } catch (error) {
     logger.error('FoldersAPI', 'Error deleting folder', { error: error.message });
     res.status(500).json({ error: 'Failed to delete folder', details: error.message });
+  }
+});
+
+/**
+ * POST /api/folders/:id/share
+ * Generate or get share token for a folder (private sharing without global)
+ */
+router.post('/:id/share', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    logger.info('FoldersAPI', 'Generating share token', { id, userId: req.user.uid });
+
+    const folderRef = db.collection(COLLECTIONS.FOLDERS).doc(id);
+    const doc = await folderRef.get();
+
+    if (!doc.exists) {
+      return res.status(404).json({ error: 'Folder not found' });
+    }
+
+    const folderData = doc.data();
+    
+    // Verify ownership
+    if (folderData.ownerId !== req.user.uid) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Generate share token if not exists
+    let shareToken = folderData.shareToken;
+    if (!shareToken) {
+      shareToken = `${id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      await folderRef.update({
+        shareToken,
+        sharedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+
+    logger.info('FoldersAPI', 'Share token generated', { id, shareToken });
+    res.json({ shareToken, message: 'Share token generated' });
+  } catch (error) {
+    logger.error('FoldersAPI', 'Error generating share token', { error: error.message });
+    res.status(500).json({ error: 'Failed to generate share token', details: error.message });
+  }
+});
+
+/**
+ * GET /api/folders/shared/:shareToken
+ * Get folder by share token (public access with auth requirement)
+ */
+router.get('/shared/:shareToken', async (req, res) => {
+  try {
+    const { shareToken } = req.params;
+    logger.info('FoldersAPI', 'Fetching folder by share token', { shareToken });
+
+    const snapshot = await db.collection(COLLECTIONS.FOLDERS)
+      .where('shareToken', '==', shareToken)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      return res.status(404).json({ error: 'Shared folder not found' });
+    }
+
+    const doc = snapshot.docs[0];
+    const folderData = doc.data();
+    
+    // Get author info
+    const userDoc = await db.collection(COLLECTIONS.USERS).doc(folderData.ownerId).get();
+    const userData = userDoc.exists ? userDoc.data() : {};
+
+    // Build folder structure
+    const buildFolderStructure = async (parentId) => {
+      const structure = { folders: [], notes: [] };
+      
+      const subfoldersSnapshot = await db.collection(COLLECTIONS.FOLDERS)
+        .where('parentId', '==', parentId)
+        .where('ownerId', '==', folderData.ownerId)
+        .get();
+      
+      for (const subfolderDoc of subfoldersSnapshot.docs) {
+        const subfolderData = subfolderDoc.data();
+        const subStructure = await buildFolderStructure(subfolderDoc.id);
+        structure.folders.push({
+          id: subfolderDoc.id,
+          name: subfolderData.name,
+          ...subStructure
+        });
+      }
+      
+      const notesSnapshot = await db.collection(COLLECTIONS.NOTES)
+        .where('folderId', '==', parentId)
+        .where('ownerId', '==', folderData.ownerId)
+        .get();
+      
+      structure.notes = notesSnapshot.docs.map(noteDoc => ({
+        id: noteDoc.id,
+        ...noteDoc.data()
+      }));
+      
+      return structure;
+    };
+
+    const structure = await buildFolderStructure(doc.id);
+
+    const folder = {
+      id: doc.id,
+      ...folderData,
+      structure,
+      authorName: userData.displayName || 'Anonymous',
+      authorPhotoURL: userData.photoURL || null,
+      createdAt: folderData.createdAt?.toDate(),
+      updatedAt: folderData.updatedAt?.toDate(),
+      requiresAuth: true,
+    };
+
+    logger.info('FoldersAPI', 'Shared folder fetched', { shareToken });
+    res.json(folder);
+  } catch (error) {
+    logger.error('FoldersAPI', 'Error fetching shared folder', { error: error.message });
+    res.status(500).json({ error: 'Failed to fetch shared folder', details: error.message });
   }
 });
 

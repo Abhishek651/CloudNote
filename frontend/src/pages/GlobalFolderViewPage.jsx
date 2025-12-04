@@ -14,6 +14,7 @@ import {
   Link,
 } from '@mui/material';
 import { ArrowBack, Public, Folder, PictureAsPdf } from '@mui/icons-material';
+import SharedContentGate from '../components/SharedContentGate';
 
 function SubfolderView({ subfolder, basePath }) {
   const navigate = useNavigate();
@@ -93,8 +94,8 @@ function SubfolderView({ subfolder, basePath }) {
   );
 }
 
-export default function GlobalFolderViewPage() {
-  const { folderId } = useParams();
+export default function GlobalFolderViewPage({ isShared = false }) {
+  const { folderId, shareToken } = useParams();
   const navigate = useNavigate();
   const [folder, setFolder] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -102,8 +103,24 @@ export default function GlobalFolderViewPage() {
   useEffect(() => {
     const loadFolderData = async () => {
       try {
-        const folderRes = await fetch(`http://localhost:5000/api/global/folders/${folderId}`);
-        const folderData = await folderRes.json();
+        let folderData;
+        
+        if (isShared && shareToken) {
+          try {
+            // Try direct share link first
+            folderData = await foldersAPI.getByShareToken(shareToken);
+          } catch (directErr) {
+            // Fallback to global share link
+            const folderRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/global/share/folder/${shareToken}`);
+            if (!folderRes.ok) throw new Error('Shared folder not found');
+            folderData = await folderRes.json();
+          }
+        } else {
+          const folderRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/global/folders/${folderId}`);
+          if (!folderRes.ok) throw new Error('Folder not found');
+          folderData = await folderRes.json();
+        }
+        
         setFolder(folderData);
       } catch (error) {
         console.error('Failed to load folder:', error);
@@ -112,7 +129,7 @@ export default function GlobalFolderViewPage() {
     };
 
     loadFolderData();
-  }, [folderId]);
+  }, [folderId, shareToken, isShared]);
 
   if (loading) {
     return (
@@ -132,7 +149,7 @@ export default function GlobalFolderViewPage() {
 
   const structure = folder.structure || { folders: [], notes: [] };
 
-  return (
+  const content = (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Breadcrumbs sx={{ mb: 2 }}>
         <Link component="button" variant="body1" onClick={() => navigate('/global')}>
@@ -227,4 +244,11 @@ export default function GlobalFolderViewPage() {
       )}
     </Container>
   );
+
+  // Wrap with auth gate if it's a shared link
+  if (isShared) {
+    return <SharedContentGate contentType="folder">{content}</SharedContentGate>;
+  }
+
+  return content;
 }

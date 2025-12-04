@@ -25,12 +25,13 @@ import { useAuth } from '../context/AuthContext';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { notesAPI, globalAPI } from '../services/api';
 import logger from '../utils/logger';
+import SharedContentGate from '../components/SharedContentGate';
 
-export default function NoteViewer() {
+export default function NoteViewer({ isShared = false }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { noteId } = useParams();
+  const { noteId, shareToken } = useParams();
 
   const [note, setNote] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -40,40 +41,57 @@ export default function NoteViewer() {
   const [copySuccess, setCopySuccess] = useState(false);
 
   useEffect(() => {
-    if (noteId) {
+    if (noteId || shareToken) {
       loadNote();
     }
-  }, [noteId]);
+  }, [noteId, shareToken]);
 
   const loadNote = async () => {
     setLoading(true);
     setError('');
 
     try {
-      logger.info('NoteViewer', 'Loading note', { noteId });
-      
-      const fromGlobal = location.pathname.includes('/global') || !user;
+      logger.info('NoteViewer', 'Loading note', { noteId, shareToken, isShared });
       
       let foundNote;
-      if (fromGlobal) {
+      
+      // Handle shared link
+      if (isShared && shareToken) {
         try {
-          foundNote = await globalAPI.getGlobalNote(noteId);
+          // Try direct share link first
+          foundNote = await notesAPI.getByShareToken(shareToken);
+          setIsGlobalNote(false);
+        } catch (directErr) {
+          // Fallback to global share link
+          const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/global/share/note/${shareToken}`);
+          if (!response.ok) throw new Error('Shared note not found');
+          foundNote = await response.json();
           setIsGlobalNote(true);
-        } catch (globalErr) {
-          if (user) {
-            foundNote = await notesAPI.getById(noteId);
-            setIsGlobalNote(false);
-          } else {
-            throw globalErr;
-          }
         }
       } else {
-        try {
-          foundNote = await notesAPI.getById(noteId);
-          setIsGlobalNote(false);
-        } catch (noteErr) {
-          foundNote = await globalAPI.getGlobalNote(noteId);
-          setIsGlobalNote(true);
+        // Handle regular note viewing
+        const fromGlobal = location.pathname.includes('/global') || !user;
+        
+        if (fromGlobal) {
+          try {
+            foundNote = await globalAPI.getGlobalNote(noteId);
+            setIsGlobalNote(true);
+          } catch (globalErr) {
+            if (user) {
+              foundNote = await notesAPI.getById(noteId);
+              setIsGlobalNote(false);
+            } else {
+              throw globalErr;
+            }
+          }
+        } else {
+          try {
+            foundNote = await notesAPI.getById(noteId);
+            setIsGlobalNote(false);
+          } catch (noteErr) {
+            foundNote = await globalAPI.getGlobalNote(noteId);
+            setIsGlobalNote(true);
+          }
         }
       }
       
@@ -158,7 +176,7 @@ export default function NoteViewer() {
 
   const isOwner = !isGlobalNote && note?.ownerId === user?.uid;
 
-  return (
+  const content = (
     <Container maxWidth="md" sx={{ py: 4 }}>
       <Stack spacing={3}>
         {/* Header */}
@@ -332,4 +350,11 @@ export default function NoteViewer() {
       />
     </Container>
   );
+
+  // Wrap with auth gate if it's a shared link
+  if (isShared) {
+    return <SharedContentGate contentType="note">{content}</SharedContentGate>;
+  }
+
+  return content;
 }

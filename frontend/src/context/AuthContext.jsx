@@ -39,13 +39,18 @@ export function AuthProvider({ children }) {
     return unsubscribe;
   }, []);
 
-  const login = async (email, password) => {
-    logger.info('AuthContext', 'Attempting login', { email });
+  const login = async (email, password, rememberMe = false) => {
+    logger.info('AuthContext', 'Attempting login', { email, rememberMe });
     try {
+      // Set persistence based on rememberMe option
+      const { setPersistence, browserLocalPersistence, browserSessionPersistence } = await import('firebase/auth');
+      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
+      
       const result = await signInWithEmailAndPassword(auth, email, password);
       logger.info('AuthContext', 'Login successful', {
         uid: result.user?.uid,
         email: result.user?.email,
+        persistence: rememberMe ? 'local' : 'session',
       });
       return result;
     } catch (error) {

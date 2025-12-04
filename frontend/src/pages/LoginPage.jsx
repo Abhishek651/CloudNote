@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Box, Paper, TextField, Button, Typography, Alert, Container, useTheme, useMediaQuery, CircularProgress, FormHelperText, Dialog, DialogTitle, DialogContent, DialogActions, Link } from '@mui/material';
+import { Box, Paper, TextField, Button, Typography, Alert, Container, useTheme, useMediaQuery, CircularProgress, FormHelperText, Dialog, DialogTitle, DialogContent, DialogActions, Link, FormControlLabel, Checkbox } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import logger from '../utils/logger';
@@ -10,6 +11,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [isSignup, setIsSignup] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,6 +22,8 @@ export default function LoginPage() {
   const [resetEmail, setResetEmail] = useState('');
   const [resetSuccess, setResetSuccess] = useState('');
   const { login, signup } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -90,17 +94,21 @@ export default function LoginPage() {
         throw new Error('Passwords do not match');
       }
 
-      logger.info('LoginPage', 'Calling auth function', { isSignup, email });
+      logger.info('LoginPage', 'Calling auth function', { isSignup, email, rememberMe });
       if (isSignup) {
         await signup(email, password);
         logger.info('LoginPage', 'Signup completed');
         setSuccess('✅ Account created successfully! Redirecting...');
       } else {
-        await login(email, password);
+        await login(email, password, rememberMe);
         logger.info('LoginPage', 'Login completed');
         setSuccess('✅ Login successful! Redirecting...');
       }
       logger.info('LoginPage', 'Auth successful, redirecting');
+      
+      // Redirect to returnTo path if provided, otherwise go to home
+      const returnTo = location.state?.returnTo || '/';
+      setTimeout(() => navigate(returnTo), 1000);
     } catch (err) {
       logger.error('LoginPage', `Error during auth: ${err.code || 'UNKNOWN'} - ${err.message}`, {
         code: err?.code || 'UNKNOWN',
@@ -250,6 +258,33 @@ export default function LoginPage() {
                   error={!!passwordConfirmError}
                   helperText={passwordConfirmError}
                 />
+              </Box>
+            )}
+
+            {/* Remember Me Checkbox (only for login) */}
+            {!isSignup && (
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      color="primary"
+                    />
+                  }
+                  label={<Typography variant="body2">Remember me</Typography>}
+                />
+                <Link
+                  component="button"
+                  variant="body2"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setResetDialogOpen(true);
+                  }}
+                  sx={{ textDecoration: 'none', cursor: 'pointer' }}
+                >
+                  Forgot password?
+                </Link>
               </Box>
             )}
 

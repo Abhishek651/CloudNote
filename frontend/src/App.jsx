@@ -143,6 +143,8 @@ function AppRoutes() {
           <Route path="/global" element={user ? <GlobalPage /> : <Navigate to="/login" />} />
           <Route path="/global/notes/:noteId" element={<NoteViewer />} />
           <Route path="/global/folders/:folderId" element={<GlobalFolderViewPage />} />
+          <Route path="/share/note/:shareToken" element={<NoteViewer isShared />} />
+          <Route path="/share/folder/:shareToken" element={<GlobalFolderViewPage isShared />} />
           <Route path="/settings" element={user ? <SettingsPage /> : <Navigate to="/login" />} />
           <Route path="/admin" element={user ? <AdminPage /> : <Navigate to="/login" />} />
 
