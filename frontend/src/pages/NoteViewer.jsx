@@ -51,17 +51,28 @@ export default function NoteViewer({ isShared = false }) {
     setError('');
 
     try {
-      logger.info('NoteViewer', 'Loading note', { noteId, shareToken, isShared });
+      console.log('[NoteViewer] === LOADING NOTE START ===', { 
+        noteId, 
+        shareToken, 
+        isShared,
+        pathname: location.pathname,
+        hasUser: !!user,
+        userId: user?.uid
+      });
+      logger.info('NoteViewer', '=== LOADING NOTE START ===', { noteId, shareToken, isShared });
       
       let foundNote;
       
       // Handle shared link
       if (isShared && shareToken) {
+        console.log('[NoteViewer] Handling shared link with token', { shareToken });
         try {
           // Try direct share link first
           foundNote = await notesAPI.getByShareToken(shareToken);
           setIsGlobalNote(false);
+          console.log('[NoteViewer] Found via direct share token');
         } catch (directErr) {
+          console.log('[NoteViewer] Direct share failed, trying global', directErr.message);
           // Fallback to global share link
           const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/global/share/note/${shareToken}`);
           if (!response.ok) throw new Error('Shared note not found');
@@ -71,17 +82,25 @@ export default function NoteViewer({ isShared = false }) {
       } else {
         // Handle regular note viewing
         const fromGlobal = location.pathname.includes('/global') || !user;
+        console.log('[NoteViewer] Regular note viewing', { fromGlobal, noteId });
         
         if (fromGlobal) {
+          console.log('[NoteViewer] Attempting to load as global note', { noteId });
           try {
             // First get the global note to get metadata
             foundNote = await globalAPI.getGlobalNote(noteId);
             setIsGlobalNote(true);
+            console.log('[NoteViewer] Global note loaded', { 
+              hasOriginalNoteId: !!foundNote.originalNoteId,
+              originalNoteId: foundNote.originalNoteId
+            });
             
             // If we have originalNoteId, try to fetch the actual note content
             if (foundNote.originalNoteId && user) {
+              console.log('[NoteViewer] Attempting to fetch original note', { originalNoteId: foundNote.originalNoteId });
               try {
                 const originalNote = await notesAPI.getById(foundNote.originalNoteId);
+                console.log('[NoteViewer] Original note fetched successfully');
                 // Merge global metadata with original note content
                 foundNote = {
                   ...originalNote,
@@ -91,11 +110,14 @@ export default function NoteViewer({ isShared = false }) {
                 };
               } catch (originalErr) {
                 // If can't access original, use global note data
+                console.log('[NoteViewer] Failed to fetch original note, using global data', originalErr.message);
                 logger.info('NoteViewer', 'Using global note data', { error: originalErr.message });
               }
             }
           } catch (globalErr) {
+            console.log('[NoteViewer] Failed to load as global', globalErr.message);
             if (user) {
+              console.log('[NoteViewer] Trying as regular note (fallback)');
               foundNote = await notesAPI.getById(noteId);
               setIsGlobalNote(false);
             } else {
@@ -103,10 +125,13 @@ export default function NoteViewer({ isShared = false }) {
             }
           }
         } else {
+          console.log('[NoteViewer] Loading as regular note');
           try {
             foundNote = await notesAPI.getById(noteId);
             setIsGlobalNote(false);
+            console.log('[NoteViewer] Regular note loaded');
           } catch (noteErr) {
+            console.log('[NoteViewer] Regular note failed, trying global', noteErr.message);
             foundNote = await globalAPI.getGlobalNote(noteId);
             setIsGlobalNote(true);
           }
@@ -114,8 +139,14 @@ export default function NoteViewer({ isShared = false }) {
       }
       
       setNote(foundNote);
+      console.log('[NoteViewer] === NOTE LOADED SUCCESSFULLY ===', { 
+        noteId, 
+        isGlobal: isGlobalNote,
+        noteTitle: foundNote.title
+      });
       logger.info('NoteViewer', 'Note loaded', { noteId, isGlobal: isGlobalNote });
     } catch (err) {
+      console.error('[NoteViewer] === FAILED TO LOAD NOTE ===', err);
       logger.error('NoteViewer', 'Failed to load note', { error: err.message });
       setError(`Failed to load note: ${err.message}`);
     }

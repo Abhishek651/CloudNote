@@ -191,32 +191,67 @@ router.get('/shared/:shareToken', async (req, res) => {
 router.get('/:id', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    logger.info('NotesAPI', 'Fetching note', { id, userId: req.user.uid });
+    logger.info('NotesAPI', 'Fetching note - START', { 
+      noteId: id, 
+      userId: req.user.uid,
+      timestamp: new Date().toISOString()
+    });
 
     const doc = await db.collection(COLLECTIONS.NOTES).doc(id).get();
+    logger.info('NotesAPI', 'Note document query result', { 
+      noteId: id, 
+      exists: doc.exists 
+    });
 
     if (!doc.exists) {
+      logger.warn('NotesAPI', 'Note not found in notes collection', { noteId: id });
       return res.status(404).json({ error: 'Note not found' });
     }
 
     const data = doc.data();
-
-    // Check if user is the owner
     const isOwner = data.ownerId === req.user.uid;
+    
+    logger.info('NotesAPI', 'Ownership check', { 
+      noteId: id, 
+      noteOwnerId: data.ownerId,
+      requestUserId: req.user.uid,
+      isOwner 
+    });
     
     // If not owner, check if note is shared globally
     if (!isOwner) {
+      logger.info('NotesAPI', 'User is not owner, checking global share', { noteId: id });
+      
       const globalSnapshot = await db.collection('globalNotes')
         .where('originalNoteId', '==', id)
         .limit(1)
         .get();
       
+      logger.info('NotesAPI', 'Global notes query result', { 
+        noteId: id, 
+        globalNotesFound: !globalSnapshot.empty,
+        globalNotesCount: globalSnapshot.size
+      });
+      
       if (globalSnapshot.empty) {
+        logger.warn('NotesAPI', 'Access denied - not owner and not globally shared', { 
+          noteId: id, 
+          userId: req.user.uid 
+        });
         return res.status(403).json({ error: 'Unauthorized' });
       }
       
       // Note is globally shared, allow access
-      logger.info('NotesAPI', 'Note accessed via global share', { id, userId: req.user.uid });
+      logger.info('NotesAPI', 'Note accessed via global share - ACCESS GRANTED', { 
+        noteId: id, 
+        userId: req.user.uid,
+        globalNoteId: globalSnapshot.docs[0].id
+      });
+    } else {
+      logger.info('NotesAPI', 'Note accessed by owner - ACCESS GRANTED', { 
+        noteId: id, 
+        userId: req.user.uid 
+      });
     }
 
     const note = {
@@ -226,10 +261,14 @@ router.get('/:id', verifyToken, async (req, res) => {
       updatedAt: data.updatedAt?.toDate(),
     };
 
-    logger.info('NotesAPI', 'Note fetched', { id });
+    logger.info('NotesAPI', 'Note fetched successfully', { noteId: id });
     res.json(note);
   } catch (error) {
-    logger.error('NotesAPI', 'Error fetching note', { error: error.message });
+    logger.error('NotesAPI', 'Error fetching note - EXCEPTION', { 
+      noteId: req.params.id,
+      error: error.message,
+      stack: error.stack
+    });
     res.status(500).json({ error: 'Failed to fetch note', details: error.message });
   }
 });
